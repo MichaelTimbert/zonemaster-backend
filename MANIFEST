@@ -1,6 +1,7 @@
 Changes
 CONTRIBUTING.md
 docs/Architecture.md
+docs/formal-test-states.md
 docs/files-description.md
 docs/TypographicConventions.md
 inc/Module/Install.pm
