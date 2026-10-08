@@ -22,10 +22,9 @@ every terminal state. It must not be used to distinguish `completed`,
 The only valid transitions are:
 
 ```text
-waiting -> running
-running -> completed
-running -> cancelled
-running -> crashed
+waiting -> running  |-> completed
+                    |-> cancelled
+                    |-> crashed
 ```
 
 All other state changes are invalid. A test can enter `cancelled` when the
