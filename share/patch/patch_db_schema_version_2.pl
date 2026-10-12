@@ -43,24 +43,12 @@ my $success = eval {
         );
     }
     elsif ( $engine eq 'SQLite' ) {
-        # SQLite does not reliably support adding a CHECK constraint via ALTER TABLE,
-        # so recreate the table using the current schema definition.
-        $dbh->do( 'ALTER TABLE test_results RENAME TO test_results_old' );
-
-        $db->create_schema();
-
-        $dbh->do( '
-            INSERT INTO test_results (
-                id, hash_id, domain, batch_id, created_at, started_at, ended_at,
-                priority, queue, progress, state, fingerprint, params, results, undelegated
-            )
-            SELECT
-                id, hash_id, domain, batch_id, created_at, started_at, ended_at,
-                priority, queue, progress, \'waiting\', fingerprint, params, results, undelegated
-            FROM test_results_old
-        ' );
-
-        $dbh->do( 'DROP TABLE test_results_old' );
+        # SQLite supports adding a column with a CHECK constraint via ALTER TABLE.
+        # (On SQLite < 3.37 the CHECK is not validated against pre-existing rows,
+        # which is harmless here: the DEFAULT fills them with 'waiting'.)
+        $dbh->do(
+            'ALTER TABLE test_results ADD COLUMN state VARCHAR(20) NOT NULL DEFAULT \'waiting\' CHECK (state IN (\'waiting\', \'running\', \'completed\', \'cancelled\', \'crashed\'))'
+        );
     }
     else {
         die "Unsupported database engine: $engine";
@@ -81,7 +69,16 @@ my $success = eval {
 if ( !$success ) {
     my $error = $@;
     eval { $dbh->rollback };
-    die "Migration failed: $error";
+    my $msg = "Migration failed: $error";
+    if ( $engine eq 'MySQL' ) {
+        $msg .=
+            "Note: MySQL does not support transactional DDL, so the database may be left partially "
+          . "migrated (the changes above were not rolled back). Before re-running this script, "
+          . "manually undo any changes that were already applied, e.g.: "
+          . "ALTER TABLE test_results DROP CONSTRAINT test_results_state_check; "
+          . "ALTER TABLE test_results DROP COLUMN state;\n";
+    }
+    die $msg;
 }
 else {
     say "Migration done";
