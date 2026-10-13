@@ -353,7 +353,7 @@ sub test_progress {
     return $result;
 }
 
-# Experimental
+
 # {
 #     "state": state,          // in all states
 #     "created_at": timestamp, // in all states
